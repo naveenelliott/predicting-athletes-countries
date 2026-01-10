@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ComposableMap,
@@ -13,64 +13,65 @@ const geoUrl =
 
 function WorldMapPage() {
   const navigate = useNavigate();
-  const { data } = useContext(DataContext);
-  const [tooltip, setTooltip] = useState("");
+  const { countryStats } = useContext(DataContext);
 
-  // country_code → value
-  const dataMap = useMemo(() => {
-    const map = {};
-    data.forEach((d) => {
-      map[d.country_code] = d.value;
-    });
-    return map;
-  }, [data]);
-
-  // simple color scale
-  const getFillColor = (value) => {
-    if (value == null) return "#e5e7eb"; // gray for no data
-    if (value > 100) return "#1d4ed8";
-    if (value > 75) return "#3b82f6";
-    if (value > 50) return "#93c5fd";
+  // color scale by player count
+  const getFillColor = (count) => {
+    if (!count) return "#e5e7eb";
+    if (count >= 10) return "#1e40af";
+    if (count >= 5) return "#3b82f6";
+    if (count >= 2) return "#93c5fd";
     return "#bfdbfe";
   };
-  
 
   return (
     <div style={{ padding: 20 }}>
-      <h1>World Map</h1>
+      <h1>Predicted National Teams</h1>
 
       <ComposableMap projectionConfig={{ scale: 150 }}>
         <Geographies geography={geoUrl}>
           {({ geographies }) =>
             geographies.map((geo) => {
-              const countryCode = geo.properties.ISO_A3;
-              const countryName = geo.properties.NAME;
-              const value = dataMap[countryCode];
+              const countryName = geo.properties.name;
+              const players = countryStats[countryName];
+
+              const count = players?.length ?? 0;
+
+              const avgProb =
+                count > 0
+                  ? players.reduce(
+                      (s, d) => s + d.pred_prob_correct,
+                      0
+                    ) / count
+                  : null;
+
+              const tooltipText =
+                count > 0
+                  ? `${countryName}
+                  Players: ${count}
+                  Avg Prob: ${avgProb.toFixed(2)}`
+                                    : `${countryName}: No data`;
 
               return (
                 <Geography
                   key={geo.rsmKey}
                   geography={geo}
-                  fill={getFillColor(value)}
-                  onMouseEnter={() => {
-                    setTooltip(
-                      `${countryName} — ${
-                        value != null ? value : "No data"
-                      }`
-                    );
+                  fill={getFillColor(count)}
+                  data-tooltip-id="map-tooltip"
+                  data-tooltip-content={tooltipText}
+                  onClick={() => {
+                    if (count > 0) {
+                      navigate(
+                        `/country/${encodeURIComponent(countryName)}`
+                      );
+                    }
                   }}
-                  onMouseLeave={() => {
-                    setTooltip("");
-                  }}
-                  onClick={() =>
-                    navigate(`/country/${countryCode}`)
-                  }
                   style={{
                     default: { outline: "none" },
                     hover: {
                       fill: "#f97316",
                       outline: "none",
-                      cursor: "pointer",
+                      cursor: count > 0 ? "pointer" : "default",
                     },
                     pressed: { outline: "none" },
                   }}
@@ -81,7 +82,7 @@ function WorldMapPage() {
         </Geographies>
       </ComposableMap>
 
-      <Tooltip id="map-tooltip">{tooltip}</Tooltip>
+      <Tooltip id="map-tooltip" />
     </div>
   );
 }
