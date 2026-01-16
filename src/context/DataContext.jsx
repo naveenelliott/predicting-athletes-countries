@@ -3,6 +3,26 @@ import Papa from "papaparse";
 
 export const DataContext = createContext();
 
+const COUNTRY_REMAP = {
+  // fill in incrementally as you discover issues
+  "USA": "United States of America",
+  "The Gambia": "Gambia",
+  "IR Iran": "Iran",
+  "Türkiye": "Turkey",
+  'England': 'United Kingdom',
+  'Republic of Ireland': 'Ireland',
+  'Congo DR': 'Dem. Rep. Congo',
+  'Korea Republic': 'South Korea',
+  'Dominican Republic': 'Dominican Rep.',
+  'Eswatini': 'eSwatini',
+  'Central African Republic': 'Central African Rep.',
+  'Bosnia and Herzegovina': 'Bosnia and Herz.',
+  'Kyrgyz Republic': 'Kyrgyzstan',
+  'Hong Kong, China': 'China',
+
+  // leave everything else untouched
+};
+
 export function DataProvider({ children }) {
   const [data, setData] = useState([]);
 
@@ -46,7 +66,10 @@ export function DataProvider({ children }) {
     const grouped = {};
 
     uniquePlayers.forEach((row) => {
-      const country = row.predicted_country;
+        const rawCountry = row.predicted_country;
+
+        const country =
+        COUNTRY_REMAP[rawCountry] ?? rawCountry;
 
       if (!grouped[country]) {
         grouped[country] = [];

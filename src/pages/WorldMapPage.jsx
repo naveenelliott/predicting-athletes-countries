@@ -7,13 +7,17 @@ import {
 } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
 import { DataContext } from "../context/DataContext";
+import PlayerLookupPanel from "../components/PlayerLookupPanel";
 
 const geoUrl =
-  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+  "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
 
 function WorldMapPage() {
   const navigate = useNavigate();
   const { countryStats } = useContext(DataContext);
+
+  const countryOptions = Object.keys(countryStats)
+  .sort((a, b) => a.localeCompare(b));
 
   // color scale by player count
   const getFillColor = (count) => {
@@ -25,13 +29,117 @@ function WorldMapPage() {
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h1>Predicted National Teams</h1>
+    <div style={{ padding: 10 }}>
+    <div
+      style={{
+        textAlign: "center"
+      }}
+    >
+      <h1
+        style={{
+          fontSize: 36,
+          fontWeight: 600,
+          marginBottom: 16,
+        }}
+      >
+        Predicted National Teams
+      </h1>
+
+      <div
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 10,
+          padding: "10px 14px",
+          borderRadius: 10,
+          border: "1px solid #e5e7eb",
+          background: "#ffffff",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+        }}
+      >
+        <label
+          htmlFor="country-select"
+          style={{
+            fontWeight: 500,
+            fontSize: 14,
+            color: "#374151",
+          }}
+        >
+          Jump to country
+        </label>
+
+        <select
+          id="country-select"
+          defaultValue=""
+          onChange={(e) => {
+            const value = e.target.value;
+            if (value) {
+              navigate(`/country/${encodeURIComponent(value)}`);
+            }
+          }}
+          style={{
+            padding: "6px 12px",
+            borderRadius: 6,
+            border: "1px solid #d1d5db",
+            fontSize: 14,
+            minWidth: 220,
+            cursor: "pointer",
+            backgroundColor: "#f9fafb",
+          }}
+        >
+          <option value="" disabled>
+            Select a country
+          </option>
+
+          {countryOptions.map((country) => (
+            <option key={country} value={country}>
+              {country}
+            </option>
+          ))}
+        </select>
+      </div>
+    </div>
 
       <ComposableMap projectionConfig={{ scale: 150 }}>
         <Geographies geography={geoUrl}>
-          {({ geographies }) =>
-            geographies.map((geo) => {
+          {({ geographies }) => {
+            /* ===============================
+               1️⃣ Build map country set
+            =============================== */
+            const mapCountrySet = new Set(
+              geographies
+                .map((g) => g.properties?.name)
+                .filter(Boolean)
+            );
+
+            /* ===============================
+               2️⃣ Find data countries not on map
+            =============================== */
+            const dataCountries = Object.keys(countryStats);
+
+            const dataNotOnMap = dataCountries.filter(
+              (c) => !mapCountrySet.has(c)
+            );
+
+            /* ===============================
+               3️⃣ Log ONCE (important)
+            =============================== */
+            if (dataNotOnMap.length > 0) {
+              console.log(
+                `Countries in data but NOT on map (${dataNotOnMap.length}):`
+              );
+              console.table(
+                dataNotOnMap.map((c) => ({
+                  predicted_country: c,
+                  count: countryStats[c]?.length ?? 0,
+                }))
+              );
+            }
+
+            /* ===============================
+               4️⃣ Render map
+            =============================== */
+            return geographies.map((geo) => {
               const countryName = geo.properties.name;
               const players = countryStats[countryName];
 
@@ -48,9 +156,9 @@ function WorldMapPage() {
               const tooltipText =
                 count > 0
                   ? `${countryName}
-                  Players: ${count}
-                  Avg Prob: ${avgProb.toFixed(2)}`
-                                    : `${countryName}: No data`;
+Players: ${count}
+Avg Prob: ${avgProb.toFixed(2)}`
+                  : `${countryName}: No data`;
 
               return (
                 <Geography
@@ -77,10 +185,12 @@ function WorldMapPage() {
                   }}
                 />
               );
-            })
-          }
+            });
+          }}
         </Geographies>
       </ComposableMap>
+
+      <PlayerLookupPanel />
 
       <Tooltip id="map-tooltip" />
     </div>
