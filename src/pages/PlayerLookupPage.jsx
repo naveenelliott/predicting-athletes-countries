@@ -1,31 +1,5 @@
 import PlayerLookupPanel from "../components/PlayerLookupPanel";
 import { useNavigate } from "react-router-dom";
-import Select from "react-select";
-
-
-function PlayerSearch({ countryOptions }) {
-  const navigate = useNavigate();
-
-  const options = countryOptions.map((c) => ({
-    value: c,
-    label: c,
-  }));
-
-  return (
-    <div style={{ minWidth: 280 }}>
-      <Select
-        options={options}
-        placeholder="Type to search a country…"
-        isClearable
-        onChange={(option) => {
-          if (option) {
-            navigate(`/country/${encodeURIComponent(option.value)}`);
-          }
-        }}
-      />
-    </div>
-  );
-}
 
 function PlayerLookupPage() {
   const navigate = useNavigate();
