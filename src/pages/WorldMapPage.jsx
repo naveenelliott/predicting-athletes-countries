@@ -1,5 +1,4 @@
 import { useContext } from "react";
-import { useNavigate } from "react-router-dom";
 import {
   ComposableMap,
   Geographies,
@@ -7,7 +6,32 @@ import {
 } from "react-simple-maps";
 import { Tooltip } from "react-tooltip";
 import { DataContext } from "../context/DataContext";
-import PlayerLookupPanel from "../components/PlayerLookupPanel";
+import Select from "react-select";
+import { useNavigate } from "react-router-dom";
+
+function CountrySearch({ countryOptions }) {
+  const navigate = useNavigate();
+
+  const options = countryOptions.map((c) => ({
+    value: c,
+    label: c,
+  }));
+
+  return (
+    <div style={{ minWidth: 280 }}>
+      <Select
+        options={options}
+        placeholder="Type to search a country…"
+        isClearable
+        onChange={(option) => {
+          if (option) {
+            navigate(`/country/${encodeURIComponent(option.value)}`);
+          }
+        }}
+      />
+    </div>
+  );
+}
 
 const geoUrl =
   "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json";
@@ -35,6 +59,21 @@ function WorldMapPage() {
         textAlign: "center"
       }}
     >
+
+        <div
+    style={{
+      display: "flex",
+      justifyContent: "center",
+      gap: 12,
+      marginBottom: 20,
+    }}
+  >
+    <TabButton active label="Map" />
+    <TabButton
+      label="Players"
+      onClick={() => navigate("/players")}
+    />
+  </div>
       <h1
         style={{
           fontSize: 36,
@@ -68,35 +107,7 @@ function WorldMapPage() {
           Jump to country
         </label>
 
-        <select
-          id="country-select"
-          defaultValue=""
-          onChange={(e) => {
-            const value = e.target.value;
-            if (value) {
-              navigate(`/country/${encodeURIComponent(value)}`);
-            }
-          }}
-          style={{
-            padding: "6px 12px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            fontSize: 14,
-            minWidth: 220,
-            cursor: "pointer",
-            backgroundColor: "#f9fafb",
-          }}
-        >
-          <option value="" disabled>
-            Select a country
-          </option>
-
-          {countryOptions.map((country) => (
-            <option key={country} value={country}>
-              {country}
-            </option>
-          ))}
-        </select>
+        <CountrySearch countryOptions={countryOptions} />
       </div>
     </div>
 
@@ -190,10 +201,27 @@ Avg Prob: ${avgProb.toFixed(2)}`
         </Geographies>
       </ComposableMap>
 
-      <PlayerLookupPanel />
-
       <Tooltip id="map-tooltip" />
     </div>
+  );
+}
+
+function TabButton({ label, active, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        padding: "8px 18px",
+        borderRadius: 999,
+        border: "1px solid #d1d5db",
+        background: active ? "#1e40af" : "#f9fafb",
+        color: active ? "#ffffff" : "#374151",
+        fontWeight: 500,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 

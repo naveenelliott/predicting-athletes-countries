@@ -5,9 +5,11 @@ import App from "./App";
 import { DataProvider } from "./context/DataContext";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
-  <DataProvider>
+  <React.StrictMode>
     <BrowserRouter>
-      <App />
+      <DataProvider>
+        <App />
+      </DataProvider>
     </BrowserRouter>
-  </DataProvider>
+  </React.StrictMode>
 );

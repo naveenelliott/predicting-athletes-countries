@@ -8,12 +8,14 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import Select from "react-select";
 import blankFlag from "../assets/blank_flag.png";
 
 function PlayerLookupPanel() {
   const { uniquePlayers } = useContext(DataContext);
-  const [selectedPlayerId, setSelectedPlayerId] = useState("");
+  const [selectedPlayerId, setSelectedPlayerId] = useState(null);
 
+  /* ---------------- Player options for react-select ---------------- */
   const playerOptions = useMemo(() => {
     const map = new Map();
 
@@ -24,10 +26,14 @@ function PlayerLookupPanel() {
     });
 
     return Array.from(map.entries())
-      .map(([id, name]) => ({ id: String(id), name }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .map(([id, name]) => ({
+        value: String(id),
+        label: name,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [uniquePlayers]);
 
+  /* ---------------- Data for selected player ---------------- */
   const playerData = useMemo(() => {
     if (!selectedPlayerId) return [];
 
@@ -43,11 +49,12 @@ function PlayerLookupPanel() {
   }, [uniquePlayers, selectedPlayerId]);
 
   return (
-    <div style={{ marginTop: 60 }}>
+    <div style={{ marginTop: 40 }}>
       <h2 style={{ textAlign: "center", marginBottom: 16 }}>
         Player nationality lookup
       </h2>
 
+      {/* ---------------- Searchable player select ---------------- */}
       <div
         style={{
           display: "flex",
@@ -55,33 +62,26 @@ function PlayerLookupPanel() {
           marginBottom: 24,
         }}
       >
-        <select
-          value={selectedPlayerId}
-          onChange={(e) => setSelectedPlayerId(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 6,
-            border: "1px solid #d1d5db",
-            minWidth: 280,
-            fontSize: 14,
-          }}
-        >
-          <option value="">Select a player</option>
-          {playerOptions.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
+        <div style={{ minWidth: 320 }}>
+          <Select
+            options={playerOptions}
+            placeholder="Type a player name…"
+            isClearable
+            onChange={(option) =>
+              setSelectedPlayerId(option ? option.value : null)
+            }
+          />
+        </div>
       </div>
 
+      {/* ---------------- Bar chart ---------------- */}
       {playerData.length > 0 && (
         <div style={{ width: "100%", height: 320 }}>
           <ResponsiveContainer width="100%" height={320}>
             <BarChart
               data={playerData}
               layout="vertical"
-              margin={{ left: 160, right: 20 }}
+              margin={{ left: 180, right: 20 }}
             >
               <XAxis
                 type="number"
@@ -118,15 +118,11 @@ function PlayerLookupPanel() {
 function CountryTick({ x, y, payload, data }) {
   const country = payload.value;
 
-  const row = data.find(
-    (d) => d.country === country
-  );
-
+  const row = data.find((d) => d.country === country);
   const flagSrc = row?.flag || blankFlag;
 
   return (
     <g transform={`translate(${x},${y})`}>
-      {/* Flag (real or blank) */}
       <image
         href={flagSrc}
         x={-130}
@@ -135,8 +131,6 @@ function CountryTick({ x, y, payload, data }) {
         height={50}
         preserveAspectRatio="xMidYMid slice"
       />
-
-      {/* Country name */}
       <text
         x={-8}
         y={4}
