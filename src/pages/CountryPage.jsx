@@ -1,6 +1,7 @@
-import { useParams } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import { useContext, useMemo } from "react";
 import { DataContext } from "../context/DataContext";
+import blankPlayer from "../assets/blank_player.png";
 
 function CountryPage() {
   const { countryName } = useParams();
@@ -9,47 +10,41 @@ function CountryPage() {
 
   const players = countryStats[decodedCountry] ?? [];
 
-  // 🔹 Country-level flag (same for all rows on this page)
-  const countryFlag =
-    players.length > 0 ? players[0].flag : null;
+  const countryFlag = players.length > 0 ? players[0].flag : null;
 
   /* ---------------- Split players ---------------- */
   const { correctPlayers, incorrectPlayers } = useMemo(() => {
-    const correctPlayers = [];
-    const incorrectPlayers = [];
+    const correct = [];
+    const incorrect = [];
 
     players.forEach((p) => {
-      if (Number(p.pred_correct) === 1) {
-        correctPlayers.push(p);
-      } else {
-        incorrectPlayers.push(p);
-      }
+      Number(p.pred_correct) === 1 ? correct.push(p) : incorrect.push(p);
     });
 
-    return { correctPlayers, incorrectPlayers };
+    return { correctPlayers: correct, incorrectPlayers: incorrect };
   }, [players]);
 
-  /* ---------------- Summary stats ---------------- */
+  /* ---------------- Summary ---------------- */
   const summary = useMemo(() => {
-    if (players.length === 0) return null;
+    if (!players.length) return null;
 
-    const count = players.length;
-    const avgProb =
-      players.reduce((s, d) => s + d.pred_prob_correct, 0) /
-      count;
-
-    return { count, avgProb };
+    return {
+      count: players.length,
+      avgProb:
+        players.reduce((s, d) => s + d.pred_prob_correct, 0) /
+        players.length,
+    };
   }, [players]);
 
   return (
-    <div style={{ padding: 24, maxWidth: 1000, margin: "0 auto" }}>
-      {/* ---------- Header with flag ---------- */}
+    <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+      {/* ---------- Header ---------- */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 12,
-          marginBottom: 8,
+          gap: 16,
+          marginBottom: 12,
         }}
       >
         {countryFlag && (
@@ -57,22 +52,19 @@ function CountryPage() {
             src={countryFlag}
             alt={`${decodedCountry} flag`}
             style={{
-              width: 75,
-              height: 50,
-              objectFit: "cover",
-              borderRadius: 4,
+              width: 90,
+              height: 60,
+              borderRadius: 6,
               border: "1px solid #e5e7eb",
+              objectFit: "cover",
             }}
           />
         )}
-
-        <h1 style={{ fontSize: 32, margin: 0 }}>
-          {decodedCountry}
-        </h1>
+        <h1 style={{ fontSize: 36, margin: 0 }}>{decodedCountry}</h1>
       </div>
 
-      <p style={{ color: "#6b7280", marginBottom: 24 }}>
-        Predicted national team players
+      <p style={{ color: "#6b7280", marginBottom: 28 }}>
+        Players with predicted national team eligibility
       </p>
 
       {/* ---------- Summary cards ---------- */}
@@ -80,111 +72,155 @@ function CountryPage() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(2, 1fr)",
+            gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
             gap: 16,
-            marginBottom: 32,
+            marginBottom: 40,
           }}
         >
           <StatCard label="Total Players" value={summary.count} />
           <StatCard
-            label="Avg Probability"
+            label="Average Probability"
             value={summary.avgProb.toFixed(2)}
           />
         </div>
       )}
 
-      {/* ---------- Tables ---------- */}
-      {players.length === 0 ? (
-        <p style={{ color: "#6b7280" }}>No players available.</p>
-      ) : (
-        <>
-          <PlayerTable
-            title={`Athletes Predicted to Represent ${decodedCountry}`}
-            players={correctPlayers}
-          />
-          <PlayerTable
-            title={`Athletes with Potential to Represent ${decodedCountry}`}
-            players={incorrectPlayers}
-          />
-        </>
-      )}
+      {/* ---------- Player sections ---------- */}
+      <PlayerSection
+        title="Likely Representatives"
+        players={correctPlayers}
+      />
+
+      <PlayerSection
+        title="Potential Representatives"
+        players={incorrectPlayers}
+      />
     </div>
   );
 }
 
-/* ---------------- Helpers ---------------- */
+/* ================= COMPONENTS ================= */
+
+function PlayerSection({ title, players }) {
+  if (!players.length) return null;
+
+  const sorted = [...players].sort(
+    (a, b) => b.pred_prob_correct - a.pred_prob_correct
+  );
+
+  return (
+    <div style={{ marginBottom: 48 }}>
+      <h2 style={{ fontSize: 24, marginBottom: 16 }}>
+        {title} ({sorted.length})
+      </h2>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+          gap: 20,
+        }}
+      >
+        {sorted.map((player) => (
+          <PlayerCard key={player.player_id} player={player} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlayerCard({ player }) {
+  return (
+    <Link
+      to={`/player/${player.player_id}`}
+      style={{ textDecoration: "none", color: "inherit" }}
+    >
+      <div
+      style={{
+        padding: 16,
+        borderRadius: 14,
+        background: "#ffffff",
+        boxShadow: "0 6px 18px rgba(0,0,0,0.06)",
+        position: "relative",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+      }}
+      >
+        {player.rating !== undefined && (
+        <div
+          style={{
+            position: "absolute",
+            top: 12,
+            right: 12,
+            background: "#111827",
+            color: "#ffffff",
+            fontSize: 12,
+            fontWeight: 600,
+            padding: "4px 8px",
+            borderRadius: 999,
+          }}
+        >
+          {player.rating.toFixed(1)}
+        </div>
+      )}
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          <img
+            src={player.player_photo || blankPlayer}
+            alt={player.player_fullname}
+            style={{
+              width: 64,
+              height: 64,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "2px solid #e5e7eb",
+            }}
+          />
+
+          <div style={{ flex: 1 }}>
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 600,
+                lineHeight: 1.2,
+              }}
+            >
+              {player.player_fullname}
+            </div>
+
+            <div style={{ fontSize: 13, color: "#6b7280" }}>
+              {player.position} · {player.club}
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 14,
+            display: "flex",
+            justifyContent: "space-between",
+            color: "#374151",
+          }}
+        >
+          <span>Probability</span>
+          <strong>{player.pred_prob_correct.toFixed(2)}</strong>
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 function StatCard({ label, value }) {
   return (
     <div
       style={{
-        padding: 16,
-        borderRadius: 8,
+        padding: 20,
+        borderRadius: 12,
         background: "#f9fafb",
         border: "1px solid #e5e7eb",
       }}
     >
-      <div style={{ fontSize: 12, color: "#6b7280" }}>
-        {label}
-      </div>
-      <div style={{ fontSize: 24, fontWeight: 600 }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function PlayerTable({ title, players }) {
-  const sortedPlayers = useMemo(() => {
-    return [...players].sort(
-      (a, b) => b.pred_prob_correct - a.pred_prob_correct
-    );
-  }, [players]);
-
-  return (
-    <div style={{ marginBottom: 40 }}>
-      <h3 style={{ fontSize: 20, marginBottom: 8 }}>
-        {title} ({sortedPlayers.length})
-      </h3>
-
-      {sortedPlayers.length === 0 ? (
-        <p style={{ color: "#6b7280" }}>No players.</p>
-      ) : (
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            fontSize: 14,
-          }}
-        >
-          <thead>
-            <tr
-              style={{
-                textAlign: "left",
-                borderBottom: "2px solid #e5e7eb",
-              }}
-            >
-              <th style={{ padding: "8px 4px" }}>Player</th>
-              <th style={{ padding: "8px 4px" }}>Probability</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sortedPlayers.map((row) => (
-              <tr
-                key={row.player_id}
-                style={{ borderBottom: "1px solid #e5e7eb" }}
-              >
-                <td style={{ padding: "8px 4px" }}>
-                  {row.player_fullname}
-                </td>
-                <td style={{ padding: "8px 4px" }}>
-                  {row.pred_prob_correct.toFixed(2)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
+      <div style={{ fontSize: 12, color: "#6b7280" }}>{label}</div>
+      <div style={{ fontSize: 28, fontWeight: 600 }}>{value}</div>
     </div>
   );
 }

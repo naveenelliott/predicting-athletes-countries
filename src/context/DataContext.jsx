@@ -3,30 +3,34 @@ import Papa from "papaparse";
 
 export const DataContext = createContext();
 
+/* ---------------- COUNTRY REMAP ---------------- */
 const COUNTRY_REMAP = {
-  // fill in incrementally as you discover issues
-  "USA": "United States of America",
+  USA: "United States of America",
   "The Gambia": "Gambia",
   "IR Iran": "Iran",
-  "Türkiye": "Turkey",
-  'England': 'United Kingdom',
-  'Republic of Ireland': 'Ireland',
-  'Congo DR': 'Dem. Rep. Congo',
-  'Korea Republic': 'South Korea',
-  'Dominican Republic': 'Dominican Rep.',
-  'Eswatini': 'eSwatini',
-  'Central African Republic': 'Central African Rep.',
-  'Bosnia and Herzegovina': 'Bosnia and Herz.',
-  'Kyrgyz Republic': 'Kyrgyzstan',
-  'Hong Kong, China': 'China',
-
-  // leave everything else untouched
+  Türkiye: "Turkey",
+  England: "United Kingdom",
+  "Republic of Ireland": "Ireland",
+  "Congo DR": "Dem. Rep. Congo",
+  "Korea Republic": "South Korea",
+  "Dominican Republic": "Dominican Rep.",
+  Eswatini: "eSwatini",
+  "Central African Republic": "Central African Rep.",
+  "Bosnia and Herzegovina": "Bosnia and Herz.",
+  "Kyrgyz Republic": "Kyrgyzstan",
+  "Hong Kong, China": "China",
 };
 
-export function DataProvider({ children }) {
-  const [data, setData] = useState([]);
+/* ---------------- NAME NORMALIZATION ---------------- */
+const normalizeName = (name) =>
+  name?.toLowerCase().replace(/\s+/g, " ").trim();
 
-  // Load CSV once
+/* ================= DATA PROVIDER ================= */
+export function DataProvider({ children }) {
+  const [predictions, setPredictions] = useState([]);
+  const [playerDetails, setPlayerDetails] = useState([]);
+
+  /* ---------------- LOAD CSV FILES ---------------- */
   useEffect(() => {
     Papa.parse("/final_player_nationality_predictions.csv", {
       header: true,
@@ -34,18 +38,61 @@ export function DataProvider({ children }) {
       dynamicTyping: true,
       skipEmptyLines: true,
       complete: (results) => {
-        setData(results.data);
+        setPredictions(results.data);
+      },
+    });
+
+    Papa.parse("/player_detailed_info.csv", {
+      header: true,
+      download: true,
+      dynamicTyping: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        setPlayerDetails(results.data);
       },
     });
   }, []);
 
-  
+  /* ---------------- BUILD LOOKUP MAP ---------------- */
+  const playerDetailsByKey = useMemo(() => {
+    const map = new Map();
 
-  // 1️⃣ DEDUPE FIRST (must come before anything uses it)
+    playerDetails.forEach((row) => {
+      if (!row.player_id || !row.player_fullname) return;
+
+      const key = `${Number(row.player_id)}|${normalizeName(
+        row.player_fullname
+      )}`;
+
+      map.set(key, row);
+    });
+
+    return map;
+  }, [playerDetails]);
+
+  /* ---------------- JOIN DATASETS ---------------- */
+  const joinedData = useMemo(() => {
+    return predictions.map((row) => {
+      if (!row.player_id || !row.player_fullname) return row;
+
+      const key = `${Number(row.player_id)}|${normalizeName(
+        row.player_fullname
+      )}`;
+
+      const details = playerDetailsByKey.get(key);
+
+      return {
+        ...row,
+        ...(details ?? {}),
+      };
+    });
+  }, [predictions, playerDetailsByKey]);
+
+  /* ---------------- DEDUPE (BEST PREDICTION) ---------------- */
   const uniquePlayers = useMemo(() => {
     const bestRowByKey = new Map();
 
-    data.forEach((row) => {
+    joinedData.forEach((row) => {
       const key = `${row.player_id}-${row.predicted_country_abbrv}`;
       const current = bestRowByKey.get(key);
 
@@ -59,17 +106,15 @@ export function DataProvider({ children }) {
     });
 
     return Array.from(bestRowByKey.values());
-  }, [data]);
+  }, [joinedData]);
 
-  // 2️⃣ GROUP BY COUNTRY (depends on uniquePlayers)
+  /* ---------------- GROUP BY COUNTRY ---------------- */
   const countryStats = useMemo(() => {
     const grouped = {};
 
     uniquePlayers.forEach((row) => {
-        const rawCountry = row.predicted_country;
-
-        const country =
-        COUNTRY_REMAP[rawCountry] ?? rawCountry;
+      const rawCountry = row.predicted_country;
+      const country = COUNTRY_REMAP[rawCountry] ?? rawCountry;
 
       if (!grouped[country]) {
         grouped[country] = [];
@@ -81,11 +126,13 @@ export function DataProvider({ children }) {
     return grouped;
   }, [uniquePlayers]);
 
-
+  /* ---------------- PROVIDER ---------------- */
   return (
     <DataContext.Provider
       value={{
-        data,
+        predictions,
+        playerDetails,
+        joinedData,
         uniquePlayers,
         countryStats,
       }}
